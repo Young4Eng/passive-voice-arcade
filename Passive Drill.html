@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>수동태 스피드런 아케이드</title>
+  
+  <!-- React & ReactDOM CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  
+  <!-- Babel for parsing JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    @keyframes scale-up-fade {
+      0% { transform: scale(0.6); opacity: 0; }
+      20% { transform: scale(1.1); opacity: 1; }
+      100% { transform: scale(1.6); opacity: 0; }
+    }
+    .animate-scale-up-fade {
+      animation: scale-up-fade 0.5s ease-out forwards;
+    }
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+      animation: fade-in 0.25s ease-out forwards;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500/30 overflow-x-hidden">
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // --- SVG Icon Components (Matches Lucide React) ---
+    const IconWrapper = ({ className, children }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        {children}
+      </svg>
+    );
+    const Zap = ({className}) => <IconWrapper className={className}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></IconWrapper>;
+    const Flame = ({className}) => <IconWrapper className={className}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></IconWrapper>;
+    const Clock = ({className}) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></IconWrapper>;
+    const Trophy = ({className}) => <IconWrapper className={className}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></IconWrapper>;
+    const AlertTriangle = ({className}) => <IconWrapper className={className}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></IconWrapper>;
+    const CheckCircle2 = ({className}) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></IconWrapper>;
+    const RotateCcw = ({className}) => <IconWrapper className={className}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></IconWrapper>;
+    const Swords = ({className}) => <IconWrapper className={className}><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"></polyline><line x1="13" y1="19" x2="19" y2="13"></line><line x1="16" y1="16" x2="20" y2="20"></line><line x1="19" y1="21" x2="21" y2="19"></line><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"></polyline><line x1="5" y1="14" x2="9" y2="18"></line><line x1="7" y1="17" x2="4" y2="20"></line><line x1="3" y1="19" x2="5" y2="21"></line></IconWrapper>;
+    const Sparkles = ({className}) => <IconWrapper className={className}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path><path d="M5 3v4"></path><path d="M19 17v4"></path><path d="M3 5h4"></path><path d="M17 19h4"></path></IconWrapper>;
+    const ChevronRight = ({className}) => <IconWrapper className={className}><path d="m9 18 6-6-6-6"></path></IconWrapper>;
+    const ShieldAlert = ({className}) => <IconWrapper className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></IconWrapper>;
+    const Crown = ({className}) => <IconWrapper className={className}><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"></path></IconWrapper>;
+    const Play = ({className}) => <IconWrapper className={className}><polygon points="5 3 19 12 5 21 5 3"></polygon></IconWrapper>;
+    const Award = ({className}) => <IconWrapper className={className}><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></IconWrapper>;
+    const TrendingUp = ({className}) => <IconWrapper className={className}><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></IconWrapper>;
+    const Shuffle = ({className}) => <IconWrapper className={className}><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></IconWrapper>;
+    const BookOpenCheck = ({className}) => <IconWrapper className={className}><path d="M8 3H2v15h7c1.7 0 3 1.3 3 3V7c0-2.2-1.8-4-4-4Z"></path><path d="m16 12 2 2 4-4"></path><path d="M22 6V3h-6c-2.2 0-4 1.8-4 4v14c0-1.7 1.3-3 3-3h7v-2.3"></path></IconWrapper>;
+    const Lock = ({className}) => <IconWrapper className={className}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></IconWrapper>;
+
+    // 티어 설정
+    const TIERS_CONFIG = [
+      { name: '레디언트 (Radiant)', min: 15000, color: 'text-amber-300 border-amber-400 bg-amber-400/10 hover:bg-amber-400/20', shadow: 'shadow-[0_0_20px_rgba(251,191,36,0.6)] animate-pulse' },
+      { name: '불멸 (Immortal)', min: 12000, color: 'text-rose-400 border-rose-500 bg-rose-500/10 hover:bg-rose-500/20', shadow: 'shadow-[0_0_15px_rgba(244,63,94,0.4)]' },
+      { name: '초월자 (Ascendant)', min: 9000, color: 'text-emerald-400 border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20', shadow: 'shadow-[0_0_10px_rgba(16,185,129,0.3)]' },
+      { name: '다이아몬드 (Diamond)', min: 6500, color: 'text-indigo-400 border-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20', shadow: 'shadow-[0_0_10px_rgba(99,102,241,0.3)]' },
+      { name: '플래티넘 (Platinum)', min: 4500, color: 'text-cyan-400 border-cyan-500 bg-cyan-500/10 hover:bg-cyan-500/20', shadow: '' },
+      { name: '골드 (Gold)', min: 2800, color: 'text-yellow-400 border-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20', shadow: '' },
+      { name: '실버 (Silver)', min: 1500, color: 'text-slate-200 border-slate-400 bg-slate-400/10 hover:bg-slate-400/20', shadow: '' },
+      { name: '브론즈 (Bronze)', min: 500, color: 'text-amber-600 border-amber-700 bg-amber-700/10 hover:bg-amber-700/20', shadow: '' },
+      { name: '아이언 (Iron)', min: 0, color: 'text-slate-500 border-slate-600 bg-slate-600/10 hover:bg-slate-600/20', shadow: '' }
+    ];
+
+    // 문제 300제 DB
+    const ALL_DRILLS_POOL = [
+      // LEVEL 1
+      { level: 1, active: "The boy kicks the ball", options: ["The ball", "is kicked", "by", "the boy"], expected: ["The ball", "is kicked", "by", "the boy"], explanation: "단수 현재: is kicked" },
+      { level: 1, active: "She loves cats", options: ["Cats", "are loved", "by", "her"], expected: ["Cats", "are loved", "by", "her"], explanation: "복수 현재: are loved" },
+      { level: 1, active: "The teacher helps the student", options: ["The student", "is helped", "by", "the teacher"], expected: ["The student", "is helped", "by", "the teacher"], explanation: "단수 현재: is helped" },
+      { level: 1, active: "The girl paints the wall", options: ["The wall", "is painted", "by", "the girl"], expected: ["The wall", "is painted", "by", "the girl"], explanation: "단수 현재: is painted" },
+      { level: 1, active: "The dog chases the cat", options: ["The cat", "is chased", "by", "the dog"], expected: ["The cat", "is chased", "by", "the dog"], explanation: "단수 현재: is chased" },
+      { level: 1, active: "He uses the computer", options: ["The computer", "is used", "by", "him"], expected: ["The computer", "is used", "by", "him"], explanation: "단수 현재: is used" },
+      { level: 1, active: "The chef cooks the meal", options: ["The meal", "is cooked", "by", "the chef"], expected: ["The meal", "is cooked", "by", "the chef"], explanation: "단수 현재: is cooked" },
+      { level: 1, active: "The farmer grows apples", options: ["Apples", "are grown", "by", "the farmer"], expected: ["Apples", "are grown", "by", "the farmer"], explanation: "복수 현재: are grown" },
+      { level: 1, active: "The cleaner washes the floor", options: ["The floor", "is washed", "by", "the cleaner"], expected: ["The floor", "is washed", "by", "the cleaner"], explanation: "단수 현재: is washed" },
+      { level: 1, active: "The monkey eats the banana", options: ["The banana", "is eaten", "by", "the monkey"], expected: ["The banana", "is eaten", "by", "the monkey"], explanation: "단수 현재: is eaten" },
+      { level: 1, active: "The bird eats the seeds", options: ["The seeds", "are eaten", "by", "the bird"], expected: ["The seeds", "are eaten", "by", "the bird"], explanation: "복수 현재: are eaten" },
+      { level: 1, active: "The cat catches the mouse", options: ["The mouse", "is caught", "by", "the cat"], expected: ["The mouse", "is caught", "by", "the cat"], explanation: "단수 현재: is caught" },
+      { level: 1, active: "The player kicks the ball", options: ["The ball", "is kicked", "by", "the player"], expected: ["The ball", "is kicked", "by", "the player"], explanation: "단수 현재: is kicked" },
+      { level: 1, active: "The singer sings the song", options: ["The song", "is sung", "by", "the singer"], expected: ["The song", "is sung", "by", "the singer"], explanation: "단수 현재: is sung" },
+      { level: 1, active: "The driver drives the car", options: ["The car", "is driven", "by", "the driver"], expected: ["The car", "is driven", "by", "the driver"], explanation: "단수 현재: is driven" },
+      { level: 1, active: "The doctor treats the patient", options: ["The patient", "is treated", "by", "the doctor"], expected: ["The patient", "is treated", "by", "the doctor"], explanation: "단수 현재: is treated" },
+      { level: 1, active: "The nurse feeds the baby", options: ["The baby", "is fed", "by", "the nurse"], expected: ["The baby", "is fed", "by", "the nurse"], explanation: "단수 현재: is fed" },
+      { level: 1, active: "The baker bakes the bread", options: ["The bread", "is baked", "by", "the baker"], expected: ["The bread", "is baked", "by", "the baker"], explanation: "단수 현재: is baked" },
+      { level: 1, active: "The writer writes the book", options: ["The book", "is written", "by", "the writer"], expected: ["The book", "is written", "by", "the writer"], explanation: "단수 현재: is written" },
+      { level: 1, active: "The actor reads the script", options: ["The script", "is read", "by", "the actor"], expected: ["The script", "is read", "by", "the actor"], explanation: "단수 현재: is read" },
+      { level: 1, active: "The artist paints the picture", options: ["The picture", "is painted", "by", "the artist"], expected: ["The picture", "is painted", "by", "the artist"], explanation: "단수 현재: is painted" },
+      { level: 1, active: "The child throws the toy", options: ["The toy", "is thrown", "by", "the child"], expected: ["The toy", "is thrown", "by", "the child"], explanation: "단수 현재: is thrown" },
+      { level: 1, active: "The spider makes the web", options: ["The web", "is made", "by", "the spider"], expected: ["The web", "is made", "by", "the spider"], explanation: "단수 현재: is made" },
+      { level: 1, active: "The horse pulls the cart", options: ["The cart", "is pulled", "by", "the horse"], expected: ["The cart", "is pulled", "by", "the horse"], explanation: "단수 현재: is pulled" },
+      { level: 1, active: "The man opens the door", options: ["The door", "is opened", "by", "the man"], expected: ["The door", "is opened", "by", "the man"], explanation: "단수 현재: is opened" },
+      { level: 1, active: "The woman closes the window", options: ["The window", "is closed", "by", "the woman"], expected: ["The window", "is closed", "by", "the woman"], explanation: "단수 현재: is closed" },
+      { level: 1, active: "The boy carries the box", options: ["The box", "is carried", "by", "the boy"], expected: ["The box", "is carried", "by", "the boy"], explanation: "단수 현재: is carried" },
+      { level: 1, active: "The girl picks the flower", options: ["The flower", "is picked", "by", "the girl"], expected: ["The flower", "is picked", "by", "the girl"], explanation: "단수 현재: is picked" },
+      { level: 1, active: "The student drops the pen", options: ["The pen", "is dropped", "by", "the student"], expected: ["The pen", "is dropped", "by", "the student"], explanation: "단수 현재: is dropped" },
+      { level: 1, active: "The teacher holds the chalk", options: ["The chalk", "is held", "by", "the teacher"], expected: ["The chalk", "is held", "by", "the teacher"], explanation: "단수 현재: is held" },
+      
+      // LEVEL 2
+      { level: 2, active: "My mom makes cookies", options: ["Cookies", "is made", "are made", "by", "my mom"], expected: ["Cookies", "are made", "by", "my mom"], explanation: "Cookies(복수) -> are made" },
+      { level: 2, active: "The dog bites the man", options: ["The man", "is bitten", "are bitten", "by", "the dog"], expected: ["The man", "is bitten", "by", "the dog"], explanation: "The man(단수) -> is bitten" },
+      { level: 2, active: "They clean the rooms", options: ["The rooms", "is cleaned", "are cleaned", "by", "them"], expected: ["The rooms", "are cleaned", "by", "them"], explanation: "The rooms(복수) -> are cleaned" },
+      { level: 2, active: "The author writes books", options: ["Books", "is written", "are written", "by", "the author"], expected: ["Books", "are written", "by", "the author"], explanation: "Books(복수) -> are written" },
+      { level: 2, active: "The artist draws pictures", options: ["Pictures", "is drawn", "are drawn", "by", "the artist"], expected: ["Pictures", "are drawn", "by", "the artist"], explanation: "Pictures(복수) -> are drawn" },
+      { level: 2, active: "He reads novels", options: ["Novels", "is read", "are read", "by", "him"], expected: ["Novels", "are read", "by", "him"], explanation: "Novels(복수) -> are read" },
+      { level: 2, active: "She buys apples", options: ["Apples", "is bought", "are bought", "by", "her"], expected: ["Apples", "are bought", "by", "her"], explanation: "Apples(복수) -> are bought" },
+      { level: 2, active: "The sun heats the water", options: ["The water", "is heated", "are heated", "by", "the sun"], expected: ["The water", "is heated", "by", "the sun"], explanation: "The water(불가산/단수) -> is heated" },
+      { level: 2, active: "The boys play games", options: ["Games", "is played", "are played", "by", "the boys"], expected: ["Games", "are played", "by", "the boys"], explanation: "Games(복수) -> are played" },
+      { level: 2, active: "The man washes the cars", options: ["The cars", "is washed", "are washed", "by", "the man"], expected: ["The cars", "are washed", "by", "the man"], explanation: "The cars(복수) -> are washed" },
+      { level: 2, active: "The factory makes toys", options: ["Toys", "is made", "are made", "by", "the factory"], expected: ["Toys", "are made", "by", "the factory"], explanation: "Toys(복수) -> are made" },
+      { level: 2, active: "The machine cuts the paper", options: ["The paper", "is cut", "are cut", "by", "the machine"], expected: ["The paper", "is cut", "by", "the machine"], explanation: "The paper(단수) -> is cut" },
+      { level: 2, active: "The girls sing songs", options: ["Songs", "is sung", "are sung", "by", "the girls"], expected: ["Songs", "are sung", "by", "the girls"], explanation: "Songs(복수) -> are sung" },
+      { level: 2, active: "The chef chops the onions", options: ["The onions", "is chopped", "are chopped", "by", "the chef"], expected: ["The onions", "are chopped", "by", "the chef"], explanation: "The onions(복수) -> are chopped" },
+      { level: 2, active: "The cat chases the mice", options: ["The mice", "is chased", "are chased", "by", "the cat"], expected: ["The mice", "are chased", "by", "the cat"], explanation: "The mice(복수) -> are chased" },
+      { level: 2, active: "He sells computers", options: ["Computers", "is sold", "are sold", "by", "him"], expected: ["Computers", "are sold", "by", "him"], explanation: "Computers(복수) -> are sold" },
+      { level: 2, active: "She feeds the dogs", options: ["The dogs", "is fed", "are fed", "by", "her"], expected: ["The dogs", "are fed", "by", "her"], explanation: "The dogs(복수) -> are fed" },
+      { level: 2, active: "The boss pays the workers", options: ["The workers", "is paid", "are paid", "by", "the boss"], expected: ["The workers", "are paid", "by", "the boss"], explanation: "The workers(복수) -> are paid" },
+      { level: 2, active: "The teacher grades the tests", options: ["The tests", "is graded", "are graded", "by", "the teacher"], expected: ["The tests", "are graded", "by", "the teacher"], explanation: "The tests(복수) -> are graded" },
+      { level: 2, active: "The farmer milks the cows", options: ["The cows", "is milked", "are milked", "by", "the farmer"], expected: ["The cows", "are milked", "by", "the farmer"], explanation: "The cows(복수) -> are milked" },
+      { level: 2, active: "The mechanic fixes the trucks", options: ["The trucks", "is fixed", "are fixed", "by", "the mechanic"], expected: ["The trucks", "are fixed", "by", "the mechanic"], explanation: "The trucks(복수) -> are fixed" },
+      { level: 2, active: "The gardener waters the plants", options: ["The plants", "is watered", "are watered", "by", "the gardener"], expected: ["The plants", "are watered", "by", "the gardener"], explanation: "The plants(복수) -> are watered" },
+      { level: 2, active: "The storm damages the houses", options: ["The houses", "is damaged", "are damaged", "by", "the storm"], expected: ["The houses", "are damaged", "by", "the storm"], explanation: "The houses(복수) -> are damaged" },
+      { level: 2, active: "The company builds roads", options: ["Roads", "is built", "are built", "by", "the company"], expected: ["Roads", "are built", "by", "the company"], explanation: "Roads(복수) -> are built" },
+      { level: 2, active: "The kids watch the movie", options: ["The movie", "is watched", "are watched", "by", "the kids"], expected: ["The movie", "is watched", "by", "the kids"], explanation: "The movie(단수) -> is watched" },
+      { level: 2, active: "The dog hides the bone", options: ["The bone", "is hidden", "are hidden", "by", "the dog"], expected: ["The bone", "is hidden", "by", "the dog"], explanation: "The bone(단수) -> is hidden" },
+      { level: 2, active: "The bear eats the honey", options: ["The honey", "is eaten", "are eaten", "by", "the bear"], expected: ["The honey", "is eaten", "by", "the bear"], explanation: "The honey(단수) -> is eaten" },
+      { level: 2, active: "The wind blows the leaves", options: ["The leaves", "is blown", "are blown", "by", "the wind"], expected: ["The leaves", "are blown", "by", "the wind"], explanation: "The leaves(복수) -> are blown" },
+      { level: 2, active: "The student answers the questions", options: ["The questions", "is answered", "are answered", "by", "the student"], expected: ["The questions", "are answered", "by", "the student"], explanation: "The questions(복수) -> are answered" },
+      { level: 2, active: "The mother hugs the child", options: ["The child", "is hugged", "are hugged", "by", "the mother"], expected: ["The child", "is hugged", "by", "the mother"], explanation: "The child(단수) -> is hugged" },
+
+      // LEVEL 3
+      { level: 3, active: "The police caught the thief", options: ["The thief", "was caught", "were caught", "by", "the police"], expected: ["The thief", "was caught", "by", "the police"], explanation: "과거 단수: was caught" },
+      { level: 3, active: "The fire destroyed the buildings", options: ["The buildings", "was destroyed", "were destroyed", "by", "the fire"], expected: ["The buildings", "were destroyed", "by", "the fire"], explanation: "과거 복수: were destroyed" },
+      { level: 3, active: "He wrote the letter", options: ["The letter", "was written", "were written", "by", "him"], expected: ["The letter", "was written", "by", "him"], explanation: "과거 단수: was written" },
+      { level: 3, active: "The storm broke the trees", options: ["The trees", "was broken", "were broken", "by", "the storm"], expected: ["The trees", "were broken", "by", "the storm"], explanation: "과거 복수: were broken" },
+      { level: 3, active: "She sang the song", options: ["The song", "was sung", "were sung", "by", "her"], expected: ["The song", "was sung", "by", "her"], explanation: "과거 단수: was sung" },
+      { level: 3, active: "The kids broke the window", options: ["The window", "was broken", "were broken", "by", "the kids"], expected: ["The window", "was broken", "by", "the kids"], explanation: "과거 단수: was broken" },
+      { level: 3, active: "The driver washed the buses", options: ["The buses", "was washed", "were washed", "by", "the driver"], expected: ["The buses", "were washed", "by", "the driver"], explanation: "과거 복수: were washed" },
+      { level: 3, active: "The teacher praised the students", options: ["The students", "was praised", "were praised", "by", "the teacher"], expected: ["The students", "were praised", "by", "the teacher"], explanation: "과거 복수: were praised" },
+      { level: 3, active: "The chef baked the cake", options: ["The cake", "was baked", "were baked", "by", "the chef"], expected: ["The cake", "was baked", "by", "the chef"], explanation: "과거 단수: was baked" },
+      { level: 3, active: "The wind blew the leaves", options: ["The leaves", "was blown", "were blown", "by", "the wind"], expected: ["The leaves", "were blown", "by", "the wind"], explanation: "과거 복수: were blown" },
+      { level: 3, active: "The boys played the game", options: ["The game", "was played", "were played", "by", "the boys"], expected: ["The game", "was played", "by", "the boys"], explanation: "과거 단수: was played" },
+      { level: 3, active: "The mechanic fixed the cars", options: ["The cars", "was fixed", "were fixed", "by", "the mechanic"], expected: ["The cars", "were fixed", "by", "the mechanic"], explanation: "과거 복수: were fixed" },
+      { level: 3, active: "The dog bit the mailman", options: ["The mailman", "was bitten", "were bitten", "by", "the dog"], expected: ["The mailman", "was bitten", "by", "the dog"], explanation: "과거 단수: was bitten" },
+      { level: 3, active: "The cats chased the birds", options: ["The birds", "was chased", "were chased", "by", "the cats"], expected: ["The birds", "were chased", "by", "the cats"], explanation: "과거 복수: were chased" },
+      { level: 3, active: "The artist painted the walls", options: ["The walls", "was painted", "were painted", "by", "the artist"], expected: ["The walls", "were painted", "by", "the artist"], explanation: "과거 복수: were painted" },
+      { level: 3, active: "The farmer planted the seeds", options: ["The seeds", "was planted", "were planted", "by", "the farmer"], expected: ["The seeds", "were planted", "by", "the farmer"], explanation: "과거 복수: were planted" },
+      { level: 3, active: "The woman found the keys", options: ["The keys", "was found", "were found", "by", "the woman"], expected: ["The keys", "were found", "by", "the woman"], explanation: "과거 복수: were found" },
+      { level: 3, active: "The man lost the wallet", options: ["The wallet", "was lost", "were lost", "by", "the man"], expected: ["The wallet", "was lost", "by", "the man"], explanation: "과거 단수: was lost" },
+      { level: 3, active: "The earthquake shook the bridge", options: ["The bridge", "was shaken", "were shaken", "by", "the earthquake"], expected: ["The bridge", "was shaken", "by", "the earthquake"], explanation: "과거 단수: was shaken" },
+      { level: 3, active: "The soldiers defended the city", options: ["The city", "was defended", "were defended", "by", "the soldiers"], expected: ["The city", "was defended", "by", "the soldiers"], explanation: "과거 단수: was defended" },
+      { level: 3, active: "The team won the matches", options: ["The matches", "was won", "were won", "by", "the team"], expected: ["The matches", "were won", "by", "the team"], explanation: "과거 복수: were won" },
+      { level: 3, active: "The author published the books", options: ["The books", "was published", "were published", "by", "the author"], expected: ["The books", "were published", "by", "the author"], explanation: "과거 복수: were published" },
+      { level: 3, active: "The doctor saved the patient", options: ["The patient", "was saved", "were saved", "by", "the doctor"], expected: ["The patient", "was saved", "by", "the doctor"], explanation: "과거 단수: was saved" },
+      { level: 3, active: "The hunter shot the bear", options: ["The bear", "was shot", "were shot", "by", "the hunter"], expected: ["The bear", "was shot", "by", "the hunter"], explanation: "과거 단수: was shot" },
+      { level: 3, active: "The workers built the houses", options: ["The houses", "was built", "were built", "by", "the workers"], expected: ["The houses", "were built", "by", "the workers"], explanation: "과거 복수: were built" },
+      { level: 3, active: "The thief stole the jewels", options: ["The jewels", "was stolen", "were stolen", "by", "the thief"], expected: ["The jewels", "were stolen", "by", "the thief"], explanation: "과거 복수: were stolen" },
+      { level: 3, active: "The scientist discovered the planet", options: ["The planet", "was discovered", "were discovered", "by", "the scientist"], expected: ["The planet", "was discovered", "by", "the scientist"], explanation: "과거 단수: was discovered" },
+      { level: 3, active: "The child dropped the cups", options: ["The cups", "was dropped", "were dropped", "by", "the child"], expected: ["The cups", "were dropped", "by", "the child"], explanation: "과거 복수: were dropped" },
+      { level: 3, active: "The monkey peeled the bananas", options: ["The bananas", "was peeled", "were peeled", "by", "the monkey"], expected: ["The bananas", "were peeled", "by", "the monkey"], explanation: "과거 복수: were peeled" },
+      { level: 3, active: "The bird built the nest", options: ["The nest", "was built", "were built", "by", "the bird"], expected: ["The nest", "was built", "by", "the bird"], explanation: "과거 단수: was built" },
+
+      // LEVEL 4
+      { level: 4, type: "verb", active: "The chef cooks the food", prefix: "The food", suffix: "by the chef.", expected: "is cooked", explanation: "단수 현재: is cooked" },
+      { level: 4, type: "verb", active: "People speak English", prefix: "English", suffix: "by people.", expected: "is spoken", explanation: "단수 현재: is spoken" },
+      { level: 4, type: "verb", active: "The machine washes the cars", prefix: "The cars", suffix: "by the machine.", expected: "are washed", explanation: "복수 현재: are washed" },
+      { level: 4, type: "verb", active: "The sun heats the water", prefix: "The water", suffix: "by the sun.", expected: "is heated", explanation: "단수 현재: is heated" },
+      { level: 4, type: "verb", active: "The boy feeds the dogs", prefix: "The dogs", suffix: "by the boy.", expected: "are fed", explanation: "복수 현재: are fed" },
+      { level: 4, type: "verb", active: "The girl waters the plants", prefix: "The plants", suffix: "by the girl.", expected: "are watered", explanation: "복수 현재: are watered" },
+      { level: 4, type: "verb", active: "The company makes phones", prefix: "Phones", suffix: "by the company.", expected: "are made", explanation: "복수 현재: are made" },
+      { level: 4, type: "verb", active: "The farmers grow rice", prefix: "Rice", suffix: "by the farmers.", expected: "is grown", explanation: "단수 현재(불가산): is grown" },
+      { level: 4, type: "verb", active: "The mother feeds the baby", prefix: "The baby", suffix: "by the mother.", expected: "is fed", explanation: "단수 현재: is fed" },
+      { level: 4, type: "verb", active: "The students clean the classroom", prefix: "The classroom", suffix: "by the students.", expected: "is cleaned", explanation: "단수 현재: is cleaned" },
+      { level: 4, type: "verb", active: "The dog guards the house", prefix: "The house", suffix: "by the dog.", expected: "is guarded", explanation: "단수 현재: is guarded" },
+      { level: 4, type: "verb", active: "The artist paints portraits", prefix: "Portraits", suffix: "by the artist.", expected: "are painted", explanation: "복수 현재: are painted" },
+      { level: 4, type: "verb", active: "The writer writes poems", prefix: "Poems", suffix: "by the writer.", expected: "are written", explanation: "복수 현재: are written" },
+      { level: 4, type: "verb", active: "The baker bakes pies", prefix: "Pies", suffix: "by the baker.", expected: "are baked", explanation: "복수 현재: are baked" },
+      { level: 4, type: "verb", active: "The postman delivers letters", prefix: "Letters", suffix: "by the postman.", expected: "are delivered", explanation: "복수 현재: are delivered" },
+      { level: 4, type: "verb", active: "The maid cleans the rooms", prefix: "The rooms", suffix: "by the maid.", expected: "are cleaned", explanation: "복수 현재: are cleaned" },
+      { level: 4, type: "verb", active: "The boy kicks the stones", prefix: "The stones", suffix: "by the boy.", expected: "are kicked", explanation: "복수 현재: are kicked" },
+      { level: 4, type: "verb", active: "The driver drives the bus", prefix: "The bus", suffix: "by the driver.", expected: "is driven", explanation: "단수 현재: is driven" },
+      { level: 4, type: "verb", active: "The doctor examines the patients", prefix: "The patients", suffix: "by the doctor.", expected: "are examined", explanation: "복수 현재: are examined" },
+      { level: 4, type: "verb", active: "The cat chases the mouse", prefix: "The mouse", suffix: "by the cat.", expected: "is chased", explanation: "단수 현재: is chased" },
+      { level: 4, type: "verb", active: "The bee makes honey", prefix: "Honey", suffix: "by the bee.", expected: "is made", explanation: "단수 현재(불가산): is made" },
+      { level: 4, type: "verb", active: "The cow gives milk", prefix: "Milk", suffix: "by the cow.", expected: "is given", explanation: "단수 현재: is given" },
+      { level: 4, type: "verb", active: "The hen lays eggs", prefix: "Eggs", suffix: "by the hen.", expected: "are laid", explanation: "복수 현재: are laid" },
+      { level: 4, type: "verb", active: "The wind moves the clouds", prefix: "The clouds", suffix: "by the wind.", expected: "are moved", explanation: "복수 현재: are moved" },
+      { level: 4, type: "verb", active: "The man cuts the trees", prefix: "The trees", suffix: "by the man.", expected: "are cut", explanation: "복수 현재: are cut" },
+      { level: 4, type: "verb", active: "The woman buys clothes", prefix: "Clothes", suffix: "by the woman.", expected: "are bought", explanation: "복수 현재: are bought" },
+      { level: 4, type: "verb", active: "The child plays the piano", prefix: "The piano", suffix: "by the child.", expected: "is played", explanation: "단수 현재: is played" },
+      { level: 4, type: "verb", active: "The singer sings a song", prefix: "A song", suffix: "by the singer.", expected: "is sung", explanation: "단수 현재: is sung" },
+      { level: 4, type: "verb", active: "The teacher explains the lesson", prefix: "The lesson", suffix: "by the teacher.", expected: "is explained", explanation: "단수 현재: is explained" },
+      { level: 4, type: "verb", active: "The students take the exam", prefix: "The exam", suffix: "by the students.", expected: "is taken", explanation: "단수 현재: is taken" },
+
+      // LEVEL 5
+      { level: 5, type: "verb", active: "Columbus discovered America", prefix: "America", suffix: "by Columbus.", expected: "was discovered", explanation: "과거 단수: was discovered" },
+      { level: 5, type: "verb", active: "The storm broke the windows", prefix: "The windows", suffix: "by the storm.", expected: "were broken", explanation: "과거 복수: were broken" },
+      { level: 5, type: "verb", active: "She took the photos", prefix: "The photos", suffix: "by her.", expected: "were taken", explanation: "과거 복수: were taken" },
+      { level: 5, type: "verb", active: "He built the house", prefix: "The house", suffix: "by him.", expected: "was built", explanation: "과거 단수: was built" },
+      { level: 5, type: "verb", active: "The dog bit the child", prefix: "The child", suffix: "by the dog.", expected: "was bitten", explanation: "과거 단수: was bitten" },
+      { level: 5, type: "verb", active: "Shakespeare wrote Hamlet", prefix: "Hamlet", suffix: "by Shakespeare.", expected: "was written", explanation: "과거 단수: was written" },
+      { level: 5, type: "verb", active: "Da Vinci painted the Mona Lisa", prefix: "The Mona Lisa", suffix: "by Da Vinci.", expected: "was painted", explanation: "과거 단수: was painted" },
+      { level: 5, type: "verb", active: "The team won the match", prefix: "The match", suffix: "by the team.", expected: "was won", explanation: "과거 단수: was won" },
+      { level: 5, type: "verb", active: "The earthquake destroyed the city", prefix: "The city", suffix: "by the earthquake.", expected: "was destroyed", explanation: "과거 단수: was destroyed" },
+      { level: 5, type: "verb", active: "The cat caught the mice", prefix: "The mice", suffix: "by the cat.", expected: "were caught", explanation: "과거 복수: were caught" },
+      { level: 5, type: "verb", active: "The chef cooked the meals", prefix: "The meals", suffix: "by the chef.", expected: "were cooked", explanation: "과거 복수: were cooked" },
+      { level: 5, type: "verb", active: "The man stole the money", prefix: "The money", suffix: "by the man.", expected: "was stolen", explanation: "과거 단수(불가산): was stolen" },
+      { level: 5, type: "verb", active: "The police arrested the robbers", prefix: "The robbers", suffix: "by the police.", expected: "were arrested", explanation: "과거 복수: were arrested" },
+      { level: 5, type: "verb", active: "The child broke the vase", prefix: "The vase", suffix: "by the child.", expected: "was broken", explanation: "과거 단수: was broken" },
+      { level: 5, type: "verb", active: "The fire burned the forest", prefix: "The forest", suffix: "by the fire.", expected: "was burned", explanation: "과거 단수: was burned" },
+      { level: 5, type: "verb", active: "The singer sang the songs", prefix: "The songs", suffix: "by the singer.", expected: "were sung", explanation: "과거 복수: were sung" },
+      { level: 5, type: "verb", active: "The boy threw the balls", prefix: "The balls", suffix: "by the boy.", expected: "were thrown", explanation: "과거 복수: were thrown" },
+      { level: 5, type: "verb", active: "The girl found the ring", prefix: "The ring", suffix: "by the girl.", expected: "was found", explanation: "과거 단수: was found" },
+      { level: 5, type: "verb", active: "The dog hid the bones", prefix: "The bones", suffix: "by the dog.", expected: "were hidden", explanation: "과거 복수: were hidden" },
+      { level: 5, type: "verb", active: "The farmer planted the trees", prefix: "The trees", suffix: "by the farmer.", expected: "were planted", explanation: "과거 복수: were planted" },
+      { level: 5, type: "verb", active: "The worker built the wall", prefix: "The wall", suffix: "by the worker.", expected: "was built", explanation: "과거 단수: was built" },
+      { level: 5, type: "verb", active: "The students answered the questions", prefix: "The questions", suffix: "by the students.", expected: "were answered", explanation: "과거 복수: were answered" },
+      { level: 5, type: "verb", active: "The teacher graded the exams", prefix: "The exams", suffix: "by the teacher.", expected: "were graded", explanation: "과거 복수: were graded" },
+      { level: 5, type: "verb", active: "The company hired the men", prefix: "The men", suffix: "by the company.", expected: "were hired", explanation: "과거 복수: were hired" },
+      { level: 5, type: "verb", active: "The mechanic fixed the bus", prefix: "The bus", suffix: "by the mechanic.", expected: "was fixed", explanation: "과거 단수: was fixed" },
+      { level: 5, type: "verb", active: "The pilot flew the plane", prefix: "The plane", suffix: "by the pilot.", expected: "was flown", explanation: "과거 단수: was flown" },
+      { level: 5, type: "verb", active: "The author published the novel", prefix: "The novel", suffix: "by the author.", expected: "was published", explanation: "과거 단수: was published" },
+      { level: 5, type: "verb", active: "The wind blew the hats", prefix: "The hats", suffix: "by the wind.", expected: "were blown", explanation: "과거 복수: were blown" },
+      { level: 5, type: "verb", active: "The guard locked the gates", prefix: "The gates", suffix: "by the guard.", expected: "were locked", explanation: "과거 복수: were locked" },
+      { level: 5, type: "verb", active: "The doctor saved the lives", prefix: "The lives", suffix: "by the doctor.", expected: "were saved", explanation: "과거 복수: were saved" },
+
+      // LEVEL 6
+      { level: 6, type: "verb", active: "The mechanic fixed the car", prefix: "The car", suffix: "by the mechanic.", expected: "was fixed", explanation: "과거 단수: was fixed" },
+      { level: 6, type: "verb", active: "Cows produce milk", prefix: "Milk", suffix: "by cows.", expected: "is produced", explanation: "현재 단수: is produced" },
+      { level: 6, type: "verb", active: "Shakespeare wrote Hamlet", prefix: "Hamlet", suffix: "by Shakespeare.", expected: "was written", explanation: "과거 단수: was written" },
+      { level: 6, type: "verb", active: "The wind blew the leaves", prefix: "The leaves", suffix: "by the wind.", expected: "were blown", explanation: "과거 복수: were blown" },
+      { level: 6, type: "verb", active: "They sell fresh apples", prefix: "Fresh apples", suffix: "by them.", expected: "are sold", explanation: "현재 복수: are sold" },
+      { level: 6, type: "verb", active: "The police arrested the robbers", prefix: "The robbers", suffix: "by the police.", expected: "were arrested", explanation: "과거 복수: were arrested" },
+      { level: 6, type: "verb", active: "The baker bakes bread", prefix: "Bread", suffix: "by the baker.", expected: "is baked", explanation: "현재 단수: is baked" },
+      { level: 6, type: "verb", active: "The scientists found the cure", prefix: "The cure", suffix: "by the scientists.", expected: "was found", explanation: "과거 단수: was found" },
+      { level: 6, type: "verb", active: "The birds eat the seeds", prefix: "The seeds", suffix: "by the birds.", expected: "are eaten", explanation: "현재 복수: are eaten" },
+      { level: 6, type: "verb", active: "The teacher explained the rules", prefix: "The rules", suffix: "by the teacher.", expected: "were explained", explanation: "과거 복수: were explained" },
+      { level: 6, type: "verb", active: "The boys played the game", prefix: "The game", suffix: "by the boys.", expected: "was played", explanation: "과거 단수: was played" },
+      { level: 6, type: "verb", active: "The sun warms the earth", prefix: "The earth", suffix: "by the sun.", expected: "is warmed", explanation: "현재 단수: is warmed" },
+      { level: 6, type: "verb", active: "The workers built the bridge", prefix: "The bridge", suffix: "by the workers.", expected: "was built", explanation: "과거 단수: was built" },
+      { level: 6, type: "verb", active: "The dogs chase the cats", prefix: "The cats", suffix: "by the dogs.", expected: "are chased", explanation: "현재 복수: are chased" },
+      { level: 6, type: "verb", active: "The child threw the stones", prefix: "The stones", suffix: "by the child.", expected: "were thrown", explanation: "과거 복수: were thrown" },
+      { level: 6, type: "verb", active: "The chef prepares the meals", prefix: "The meals", suffix: "by the chef.", expected: "are prepared", explanation: "현재 복수: are prepared" },
+      { level: 6, type: "verb", active: "The woman lost the keys", prefix: "The keys", suffix: "by the woman.", expected: "were lost", explanation: "과거 복수: were lost" },
+      { level: 6, type: "verb", active: "The factory produces cars", prefix: "Cars", suffix: "by the factory.", expected: "are produced", explanation: "현재 복수: are produced" },
+      { level: 6, type: "verb", active: "The farmer grew the crops", prefix: "The crops", suffix: "by the farmer.", expected: "were grown", explanation: "과거 복수: were grown" },
+      { level: 6, type: "verb", active: "The maid cleans the house", prefix: "The house", suffix: "by the maid.", expected: "is cleaned", explanation: "현재 단수: is cleaned" },
+      { level: 6, type: "verb", active: "The storm damaged the roof", prefix: "The roof", suffix: "by the storm.", expected: "was damaged", explanation: "과거 단수: was damaged" },
+      { level: 6, type: "verb", active: "The author writes the books", prefix: "The books", suffix: "by the author.", expected: "are written", explanation: "현재 복수: are written" },
+      { level: 6, type: "verb", active: "The thief stole the bags", prefix: "The bags", suffix: "by the thief.", expected: "were stolen", explanation: "과거 복수: were stolen" },
+      { level: 6, type: "verb", active: "The doctor treats the patient", prefix: "The patient", suffix: "by the doctor.", expected: "is treated", explanation: "현재 단수: is treated" },
+      { level: 6, type: "verb", active: "The fire burned the house", prefix: "The house", suffix: "by the fire.", expected: "was burned", explanation: "과거 단수: was burned" },
+      { level: 6, type: "verb", active: "The monkeys eat the bananas", prefix: "The bananas", suffix: "by the monkeys.", expected: "are eaten", explanation: "현재 복수: are eaten" },
+      { level: 6, type: "verb", active: "The kids broke the toys", prefix: "The toys", suffix: "by the kids.", expected: "were broken", explanation: "과거 복수: were broken" },
+      { level: 6, type: "verb", active: "The machine washes the bottles", prefix: "The bottles", suffix: "by the machine.", expected: "are washed", explanation: "현재 복수: are washed" },
+      { level: 6, type: "verb", active: "The girl found the coin", prefix: "The coin", suffix: "by the girl.", expected: "was found", explanation: "과거 단수: was found" },
+      { level: 6, type: "verb", active: "The artist paints the walls", prefix: "The walls", suffix: "by the artist.", expected: "are painted", explanation: "현재 복수: are painted" },
+
+      // LEVEL 7
+      { level: 7, type: "full", active: "He opens the door", expected: "The door is opened by him", explanation: "현재 수동태: The door is opened by him" },
+      { level: 7, type: "full", active: "The sun warms the earth", expected: "The earth is warmed by the sun", explanation: "현재 수동태: The earth is warmed by the sun" },
+      { level: 7, type: "full", active: "They build new houses", expected: "New houses are built by them", explanation: "현재 수동태: New houses are built by them" },
+      { level: 7, type: "full", active: "The cat catches the mouse", expected: "The mouse is caught by the cat", explanation: "현재 수동태: The mouse is caught by the cat" },
+      { level: 7, type: "full", active: "She writes the emails", expected: "The emails are written by her", explanation: "현재 수동태: The emails are written by her" },
+      { level: 7, type: "full", active: "The dog guards the house", expected: "The house is guarded by the dog", explanation: "현재 수동태: The house is guarded by the dog" },
+      { level: 7, type: "full", active: "The singer sings the song", expected: "The song is sung by the singer", explanation: "현재 수동태: The song is sung by the singer" },
+      { level: 7, type: "full", active: "The kids play the game", expected: "The game is played by the kids", explanation: "현재 수동태: The game is played by the kids" },
+      { level: 7, type: "full", active: "The cleaner sweeps the floor", expected: "The floor is swept by the cleaner", explanation: "현재 수동태: The floor is swept by the cleaner" },
+      { level: 7, type: "full", active: "The author publishes the book", expected: "The book is published by the author", explanation: "현재 수동태: The book is published by the author" },
+      { level: 7, type: "full", active: "The chef cooks the meal", expected: "The meal is cooked by the chef", explanation: "현재 수동태: The meal is cooked by the chef" },
+      { level: 7, type: "full", active: "The mechanic fixes the car", expected: "The car is fixed by the mechanic", explanation: "현재 수동태: The car is fixed by the mechanic" },
+      { level: 7, type: "full", active: "The doctor treats the patient", expected: "The patient is treated by the doctor", explanation: "현재 수동태: The patient is treated by the doctor" },
+      { level: 7, type: "full", active: "The farmer grows the corn", expected: "The corn is grown by the farmer", explanation: "현재 수동태: The corn is grown by the farmer" },
+      { level: 7, type: "full", active: "The driver drives the bus", expected: "The bus is driven by the driver", explanation: "현재 수동태: The bus is driven by the driver" },
+      { level: 7, type: "full", active: "The boy kicks the ball", expected: "The ball is kicked by the boy", explanation: "현재 수동태: The ball is kicked by the boy" },
+      { level: 7, type: "full", active: "The teacher helps the students", expected: "The students are helped by the teacher", explanation: "현재 수동태: The students are helped by the teacher" },
+      { level: 7, type: "full", active: "The factory makes the toys", expected: "The toys are made by the factory", explanation: "현재 수동태: The toys are made by the factory" },
+      { level: 7, type: "full", active: "The machine cuts the paper", expected: "The paper is cut by the machine", explanation: "현재 수동태: The paper is cut by the machine" },
+      { level: 7, type: "full", active: "The wind moves the clouds", expected: "The clouds are moved by the wind", explanation: "현재 수동태: The clouds are moved by the wind" },
+      { level: 7, type: "full", active: "The baker bakes the cake", expected: "The cake is baked by the baker", explanation: "현재 수동태: The cake is baked by the baker" },
+      { level: 7, type: "full", active: "The artist draws the picture", expected: "The picture is drawn by the artist", explanation: "현재 수동태: The picture is drawn by the artist" },
+      { level: 7, type: "full", active: "The company sells the products", expected: "The products are sold by the company", explanation: "현재 수동태: The products are sold by the company" },
+      { level: 7, type: "full", active: "The woman buys the clothes", expected: "The clothes are bought by the woman", explanation: "현재 수동태: The clothes are bought by the woman" },
+      { level: 7, type: "full", active: "The man reads the news", expected: "The news is read by the man", explanation: "현재 수동태: The news is read by the man" },
+      { level: 7, type: "full", active: "The dog hides the bone", expected: "The bone is hidden by the dog", explanation: "현재 수동태: The bone is hidden by the dog" },
+      { level: 7, type: "full", active: "The bird eats the worm", expected: "The worm is eaten by the bird", explanation: "현재 수동태: The worm is eaten by the bird" },
+      { level: 7, type: "full", active: "The monkey peels the banana", expected: "The banana is peeled by the monkey", explanation: "현재 수동태: The banana is peeled by the monkey" },
+      { level: 7, type: "full", active: "The child breaks the toy", expected: "The toy is broken by the child", explanation: "현재 수동태: The toy is broken by the child" },
+      { level: 7, type: "full", active: "The student asks the question", expected: "The question is asked by the student", explanation: "현재 수동태: The question is asked by the student" },
+
+      // LEVEL 8
+      { level: 8, type: "full", active: "The cat chased the mouse", expected: "The mouse was chased by the cat", explanation: "과거 수동태: The mouse was chased by the cat" },
+      { level: 8, type: "full", active: "Someone stole my bike", expected: "My bike was stolen by someone", explanation: "과거 수동태: My bike was stolen by someone" },
+      { level: 8, type: "full", active: "We won the game", expected: "The game was won by us", explanation: "과거 수동태: The game was won by us" },
+      { level: 8, type: "full", active: "He found the keys", expected: "The keys were found by him", explanation: "과거 수동태: The keys were found by him" },
+      { level: 8, type: "full", active: "The teacher explained the rule", expected: "The rule was explained by the teacher", explanation: "과거 수동태: The rule was explained by the teacher" },
+      { level: 8, type: "full", active: "The boy broke the glass", expected: "The glass was broken by the boy", explanation: "과거 수동태: The glass was broken by the boy" },
+      { level: 8, type: "full", active: "The company hired the workers", expected: "The workers were hired by the company", explanation: "과거 수동태: The workers were hired by the company" },
+      { level: 8, type: "full", active: "The doctor treated the patient", expected: "The patient was treated by the doctor", explanation: "과거 수동태: The patient was treated by the doctor" },
+      { level: 8, type: "full", active: "The chef prepared the meal", expected: "The meal was prepared by the chef", explanation: "과거 수동태: The meal was prepared by the chef" },
+      { level: 8, type: "full", active: "The storm damaged the roof", expected: "The roof was damaged by the storm", explanation: "과거 수동태: The roof was damaged by the storm" },
+      { level: 8, type: "full", active: "The police caught the thief", expected: "The thief was caught by the police", explanation: "과거 수동태: The thief was caught by the police" },
+      { level: 8, type: "full", active: "The fire destroyed the building", expected: "The building was destroyed by the fire", explanation: "과거 수동태: The building was destroyed by the fire" },
+      { level: 8, type: "full", active: "The artist painted the portrait", expected: "The portrait was painted by the artist", explanation: "과거 수동태: The portrait was painted by the artist" },
+      { level: 8, type: "full", active: "The author wrote the novel", expected: "The novel was written by the author", explanation: "과거 수동태: The novel was written by the author" },
+      { level: 8, type: "full", active: "The farmer planted the seeds", expected: "The seeds were planted by the farmer", explanation: "과거 수동태: The seeds were planted by the farmer" },
+      { level: 8, type: "full", active: "The wind blew the hat", expected: "The hat was blown by the wind", explanation: "과거 수동태: The hat was blown by the wind" },
+      { level: 8, type: "full", active: "The dog bit the man", expected: "The man was bitten by the dog", explanation: "과거 수동태: The man was bitten by the dog" },
+      { level: 8, type: "full", active: "The bird built the nest", expected: "The nest was built by the bird", explanation: "과거 수동태: The nest was built by the bird" },
+      { level: 8, type: "full", active: "The monkey ate the bananas", expected: "The bananas were eaten by the monkey", explanation: "과거 수동태: The bananas were eaten by the monkey" },
+      { level: 8, type: "full", active: "The mechanic fixed the cars", expected: "The cars were fixed by the mechanic", explanation: "과거 수동태: The cars were fixed by the mechanic" },
+      { level: 8, type: "full", active: "The woman found the ring", expected: "The ring was found by the woman", explanation: "과거 수동태: The ring was found by the woman" },
+      { level: 8, type: "full", active: "The man lost the wallet", expected: "The wallet was lost by the man", explanation: "과거 수동태: The wallet was lost by the man" },
+      { level: 8, type: "full", active: "The kids broke the windows", expected: "The windows were broken by the kids", explanation: "과거 수동태: The windows were broken by the kids" },
+      { level: 8, type: "full", active: "The singer sang the songs", expected: "The songs were sung by the singer", explanation: "과거 수동태: The songs were sung by the singer" },
+      { level: 8, type: "full", active: "The driver parked the bus", expected: "The bus was parked by the driver", explanation: "과거 수동태: The bus was parked by the driver" },
+      { level: 8, type: "full", active: "The guard locked the gate", expected: "The gate was locked by the guard", explanation: "과거 수동태: The gate was locked by the guard" },
+      { level: 8, type: "full", active: "The team won the match", expected: "The match was won by the team", explanation: "과거 수동태: The match was won by the team" },
+      { level: 8, type: "full", active: "The earthquake shook the city", expected: "The city was shaken by the earthquake", explanation: "과거 수동태: The city was shaken by the earthquake" },
+      { level: 8, type: "full", active: "The child threw the stones", expected: "The stones were thrown by the child", explanation: "과거 수동태: The stones were thrown by the child" },
+      { level: 8, type: "full", active: "The teacher graded the test", expected: "The test was graded by the teacher", explanation: "과거 수동태: The test was graded by the teacher" },
+
+      // LEVEL 9
+      { level: 9, type: "full", active: "I invited her", expected: "She was invited by me", explanation: "her는 She로, I는 by me로 변경." },
+      { level: 9, type: "full", active: "He respects them", expected: "They are respected by him", explanation: "them은 They로, He는 by him으로 변경." },
+      { level: 9, type: "full", active: "She bought it", expected: "It was bought by her", explanation: "it은 그대로, She는 by her로 변경." },
+      { level: 9, type: "full", active: "They helped us", expected: "We were helped by them", explanation: "us는 We로, They는 by them으로 변경." },
+      { level: 9, type: "full", active: "We saw him", expected: "He was seen by us", explanation: "him은 He로, We는 by us로 변경." },
+      { level: 9, type: "full", active: "She loves me", expected: "I am loved by her", explanation: "me는 I로, She는 by her로 변경." },
+      { level: 9, type: "full", active: "He hates us", expected: "We are hated by him", explanation: "us는 We로, He는 by him으로 변경." },
+      { level: 9, type: "full", active: "I called them", expected: "They were called by me", explanation: "them은 They로, I는 by me로 변경." },
+      { level: 9, type: "full", active: "They pushed him", expected: "He was pushed by them", explanation: "him은 He로, They는 by them으로 변경." },
+      { level: 9, type: "full", active: "We elected her", expected: "She was elected by us", explanation: "her는 She로, We는 by us로 변경." },
+      { level: 9, type: "full", active: "He teaches me", expected: "I am taught by him", explanation: "me는 I로, He는 by him으로 변경." },
+      { level: 9, type: "full", active: "She found us", expected: "We were found by her", explanation: "us는 We로, She는 by her로 변경." },
+      { level: 9, type: "full", active: "I warned them", expected: "They were warned by me", explanation: "them은 They로, I는 by me로 변경." },
+      { level: 9, type: "full", active: "They beat him", expected: "He was beaten by them", explanation: "him은 He로, They는 by them으로 변경." },
+      { level: 9, type: "full", active: "We followed her", expected: "She was followed by us", explanation: "her는 She로, We는 by us로 변경." },
+      { level: 9, type: "full", active: "He saved me", expected: "I was saved by him", explanation: "me는 I로, He는 by him으로 변경." },
+      { level: 9, type: "full", active: "She trusts us", expected: "We are trusted by her", explanation: "us는 We로, She는 by her로 변경." },
+      { level: 9, type: "full", active: "I asked them", expected: "They were asked by me", explanation: "them은 They로, I는 by me로 변경." },
+      { level: 9, type: "full", active: "They stopped him", expected: "He was stopped by them", explanation: "him은 He로, They는 by them으로 변경." },
+      { level: 9, type: "full", active: "We protected her", expected: "She was protected by us", explanation: "her는 She로, We는 by us로 변경." },
+      { level: 9, type: "full", active: "He blames me", expected: "I am blamed by him", explanation: "me는 I로, He는 by him으로 변경." },
+      { level: 9, type: "full", active: "She feeds us", expected: "We are fed by her", explanation: "us는 We로, She는 by her로 변경." },
+      { level: 9, type: "full", active: "I paid them", expected: "They were paid by me", explanation: "them은 They로, I는 by me로 변경." },
+      { level: 9, type: "full", active: "They caught him", expected: "He was caught by them", explanation: "him은 He로, They는 by them으로 변경." },
+      { level: 9, type: "full", active: "We visited her", expected: "She was visited by us", explanation: "her는 She로, We는 by us로 변경." },
+      { level: 9, type: "full", active: "He hit me", expected: "I was hit by him", explanation: "me는 I로, He는 by him으로 변경." },
+      { level: 9, type: "full", active: "She kissed him", expected: "He was kissed by her", explanation: "him은 He로, She는 by her로 변경." },
+      { level: 9, type: "full", active: "I hugged her", expected: "She was hugged by me", explanation: "her는 She로, I는 by me로 변경." },
+      { level: 9, type: "full", active: "They chose us", expected: "We were chosen by them", explanation: "us는 We로, They는 by them으로 변경." },
+      { level: 9, type: "full", active: "We forgot them", expected: "They were forgotten by us", explanation: "them은 They로, We는 by us로 변경." },
+
+      // LEVEL 10
+      { level: 10, type: "full", active: "The boy broke the window", expected: "The window was broken by the boy", explanation: "과거 단수 수동태: was broken" },
+      { level: 10, type: "full", active: "They eat apples", expected: "Apples are eaten by them", explanation: "현재 복수 수동태: are eaten" },
+      { level: 10, type: "full", active: "Someone pushed me", expected: "I was pushed by someone", explanation: "me는 I로 주격 변환, 과거형 was pushed." },
+      { level: 10, type: "full", active: "She teaches him", expected: "He is taught by her", explanation: "him은 He로 변환, 현재형 is taught." },
+      { level: 10, type: "full", active: "The dog chased them", expected: "They were chased by the dog", explanation: "them은 They로 변환, 과거 복수 were chased." },
+      { level: 10, type: "full", active: "I finished the work", expected: "The work was finished by me", explanation: "과거 단수: was finished" },
+      { level: 10, type: "full", active: "He paints the walls", expected: "The walls are painted by him", explanation: "현재 복수: are painted" },
+      { level: 10, type: "full", active: "They sold the house", expected: "The house was sold by them", explanation: "과거 단수: was sold" },
+      { level: 10, type: "full", active: "She sings the songs", expected: "The songs are sung by her", explanation: "현재 복수: are sung" },
+      { level: 10, type: "full", active: "We loved the movie", expected: "The movie was loved by us", explanation: "과거 단수: was loved" },
+      { level: 10, type: "full", active: "The cat caught the mice", expected: "The mice were caught by the cat", explanation: "과거 복수: were caught" },
+      { level: 10, type: "full", active: "The chef cooked the fish", expected: "The fish was cooked by the chef", explanation: "과거 단수: was cooked" },
+      { level: 10, type: "full", active: "The kids play the piano", expected: "The piano is played by the kids", explanation: "현재 단수: is played" },
+      { level: 10, type: "full", active: "The fire destroyed the cars", expected: "The cars were destroyed by the fire", explanation: "과거 복수: were destroyed" },
+      { level: 10, type: "full", active: "The teacher helps us", expected: "We are helped by the teacher", explanation: "us는 We로 변환, 현재형 are helped." },
+      { level: 10, type: "full", active: "The mechanic fixed the bus", expected: "The bus was fixed by the mechanic", explanation: "과거 단수: was fixed" },
+      { level: 10, type: "full", active: "The artist draws the trees", expected: "The trees are drawn by the artist", explanation: "현재 복수: are drawn" },
+      { level: 10, type: "full", active: "The boy found the coins", expected: "The coins were found by the boy", explanation: "과거 복수: were found" },
+      { level: 10, type: "full", active: "The woman buys the bags", expected: "The bags are bought by the woman", explanation: "현재 복수: are bought" },
+      { level: 10, type: "full", active: "The team won the medals", expected: "The medals were won by the team", explanation: "과거 복수: were won" },
+      { level: 10, type: "full", active: "The wind blew the paper", expected: "The paper was blown by the wind", explanation: "과거 단수: was blown" },
+      { level: 10, type: "full", active: "The dog bit the thieves", expected: "The thieves were bitten by the dog", explanation: "과거 복수: were bitten" },
+      { level: 10, type: "full", active: "The doctor saved him", expected: "He was saved by the doctor", explanation: "him은 He로 변환, 과거형 was saved." },
+      { level: 10, type: "full", active: "The girls clean the room", expected: "The room is cleaned by the girls", explanation: "현재 단수: is cleaned" },
+      { level: 10, type: "full", active: "The monkeys ate the bananas", expected: "The bananas were eaten by the monkeys", explanation: "과거 복수: were eaten" },
+      { level: 10, type: "full", active: "The man opened the boxes", expected: "The boxes were opened by the man", explanation: "과거 복수: were opened" },
+      { level: 10, type: "full", active: "The company builds the robots", expected: "The robots are built by the company", explanation: "현재 복수: are built" },
+      { level: 10, type: "full", active: "The driver parked the cars", expected: "The cars were parked by the driver", explanation: "과거 복수: were parked" },
+      { level: 10, type: "full", active: "The storm damaged the house", expected: "The house was damaged by the storm", explanation: "과거 단수: was damaged" },
+      { level: 10, type: "full", active: "The guard locked the doors", expected: "The doors were locked by the guard", explanation: "과거 복수: were locked" }
+    ];
+
+    function App() {
+      const [gameState, setGameState] = useState('locked'); // locked, welcome, playing, result, review_complete
+      const [passwordInput, setPasswordInput] = useState('');
+      const [pwdError, setPwdError] = useState(false);
+      
+      const [activeSequence, setActiveSequence] = useState([]); 
+      const [drillIdx, setDrillIdx] = useState(0);
+      const [score, setScore] = useState(0);
+      const [combo, setCombo] = useState(0);
+      const [maxCombo, setMaxCombo] = useState(0);
+      const [timeLeft, setTimeLeft] = useState(200); 
+      const [lap, setLap] = useState(1); 
+      const [stats, setStats] = useState({ correct: 0, total: 0 });
+
+      // Review Mode
+      const [wrongDrills, setWrongDrills] = useState([]);
+      const [isReviewMode, setIsReviewMode] = useState(false);
+
+      const [selectedParts, setSelectedParts] = useState([]);
+      const [shuffledOptions, setShuffledOptions] = useState([]);
+      const [typedInput, setTypedInput] = useState('');
+      const [feedback, setFeedback] = useState(null); 
+      const [wrongTimeoutId, setWrongTimeoutId] = useState(null);
+      
+      const [personalBest, setPersonalBest] = useState({ score: 0, tier: '아이언 (Iron)' });
+      const [prevTier, setPrevTier] = useState('아이언 (Iron)');
+      const [showTierUpAnimation, setShowTierUpAnimation] = useState(false);
+
+      const inputRef = useRef(null);
+      const currentDrill = activeSequence[drillIdx];
+
+      const handlePasswordSubmit = (e) => {
+        e.preventDefault();
+        if (passwordInput === '0826') {
+          setGameState('welcome');
+          setPwdError(false);
+        } else {
+          setPwdError(true);
+          setPasswordInput('');
+        }
+      };
+
+      const getTierMetadata = (currentScore) => {
+        const tier = TIERS_CONFIG.find(t => currentScore >= t.min);
+        return tier || TIERS_CONFIG[TIERS_CONFIG.length - 1];
+      };
+
+      const generateLapSequence = (currentLap) => {
+        let sequence = [];
+        if (currentLap === 1) {
+          for (let lvl = 1; lvl <= 10; lvl++) {
+            const levelDrills = ALL_DRILLS_POOL.filter(d => d.level === lvl);
+            const shuffled = levelDrills.sort(() => Math.random() - 0.5);
+            sequence.push(...shuffled.slice(0, 3)); 
+          }
+        } else {
+          for (let lvl = 6; lvl <= 10; lvl++) {
+            const levelDrills = ALL_DRILLS_POOL.filter(d => d.level === lvl);
+            const shuffled = levelDrills.sort(() => Math.random() - 0.5);
+            sequence.push(...shuffled.slice(0, 6)); 
+          }
+        }
+        return sequence;
+      };
+
+      useEffect(() => {
+        const savedBest = localStorage.getItem('passive_arcade_best_score');
+        if (savedBest) {
+          setPersonalBest(JSON.parse(savedBest));
+        }
+      }, []);
+
+      useEffect(() => {
+        if (gameState === 'playing' && !isReviewMode && timeLeft > 0) {
+          const timer = setInterval(() => {
+            setTimeLeft(prev => {
+              if (prev <= 1) {
+                clearInterval(timer);
+                setGameState('result');
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+          return () => clearInterval(timer);
+        }
+      }, [gameState, timeLeft, isReviewMode]);
+
+      useEffect(() => {
+        if (gameState === 'playing' && !isReviewMode) {
+          const currentTier = getTierMetadata(score).name;
+          if (currentTier !== prevTier) {
+            const currentIndex = TIERS_CONFIG.findIndex(t => t.name === currentTier);
+            const prevIndex = TIERS_CONFIG.findIndex(t => t.name === prevTier);
+            if (currentIndex < prevIndex) {
+              setShowTierUpAnimation(true);
+              setTimeout(() => setShowTierUpAnimation(false), 1500);
+            }
+            setPrevTier(currentTier);
+          }
+        }
+      }, [score, prevTier, gameState, isReviewMode]);
+
+      useEffect(() => {
+         if(gameState === 'result' && !isReviewMode) {
+            const finalTier = getTierMetadata(score).name;
+            const currentRecord = { score, tier: finalTier };
+            if (score > personalBest.score) {
+              setPersonalBest(currentRecord);
+              localStorage.setItem('passive_arcade_best_score', JSON.stringify(currentRecord));
+            }
+         }
+      }, [gameState, isReviewMode]);
+
+      const loadDrill = (index, sequence, currentLap) => {
+        const activeSeq = sequence || activeSequence;
+        const workingLap = currentLap || lap;
+        
+        if (index >= activeSeq.length) {
+          if (isReviewMode) {
+            setGameState('review_complete');
+            return;
+          }
+          const nextLap = workingLap + 1;
+          setLap(nextLap);
+          const newSequence = generateLapSequence(nextLap);
+          setActiveSequence(newSequence);
+          setDrillIdx(0);
+          initDrill(newSequence[0]);
+        } else {
+          setDrillIdx(index);
+          initDrill(activeSeq[index]);
+        }
+      };
+
+      const initDrill = (drillData) => {
+        if (!drillData) return;
+        setSelectedParts([]);
+        setTypedInput('');
+        setFeedback(null);
+
+        if (!drillData.type) { 
+          const optionsWithIds = drillData.options.map((opt, i) => ({ id: i, text: opt }));
+          setShuffledOptions(optionsWithIds.sort(() => Math.random() - 0.5));
+        } else {
+          setTimeout(() => {
+            if (inputRef.current) inputRef.current.focus();
+          }, 50);
+        }
+      };
+
+      const startGame = () => {
+        const newSequence = generateLapSequence(1);
+        setActiveSequence(newSequence);
+        setScore(0);
+        setCombo(0);
+        setMaxCombo(0);
+        setTimeLeft(200);
+        setLap(1);
+        setPrevTier('아이언 (Iron)');
+        setStats({ correct: 0, total: 0 });
+        setWrongDrills([]);
+        setIsReviewMode(false);
+        setGameState('playing');
+        loadDrill(0, newSequence, 1);
+      };
+
+      const startReviewMode = () => {
+        setIsReviewMode(true);
+        setActiveSequence(wrongDrills);
+        setDrillIdx(0);
+        setTimeLeft(0); // Pause timer conceptually
+        setGameState('playing');
+        initDrill(wrongDrills[0]);
+      };
+
+      const normalizeText = (text) => text.toLowerCase().replace(/[.,!?]/g, '').replace(/\s+/g, ' ').trim();
+
+      const handleCorrect = () => {
+        if (!isReviewMode) {
+          const baseScore = 150;
+          const comboMultiplier = 1 + (combo * 0.2); 
+          const earned = Math.round(baseScore * comboMultiplier);
+          setScore(prev => prev + earned);
+          setCombo(prev => {
+            const newCombo = prev + 1;
+            setMaxCombo(m => Math.max(m, newCombo));
+            return newCombo;
+          });
+          setStats(prev => ({ ...prev, correct: prev.correct + 1, total: prev.total + 1 }));
+        }
+        setFeedback('correct');
+        setTimeout(() => loadDrill(drillIdx + 1), 400);
+      };
+
+      const handleMistake = () => {
+        if (!isReviewMode) {
+          setCombo(0);
+          setStats(prev => ({ ...prev, total: prev.total + 1 }));
+          setWrongDrills(prev => {
+            if (!prev.find(d => d.active === currentDrill.active)) {
+              return [...prev, currentDrill];
+            }
+            return prev;
+          });
+        }
+        setFeedback('wrong');
+        const id = setTimeout(() => advanceNext(), 4000); 
+        setWrongTimeoutId(id);
+      };
+
+      const advanceNext = () => {
+        if (wrongTimeoutId) {
+          clearTimeout(wrongTimeoutId);
+          setWrongTimeoutId(null);
+        }
+        loadDrill(drillIdx + 1);
+      };
+
+      useEffect(() => {
+        if (currentDrill && !currentDrill.type && selectedParts.length === 4 && feedback === null) {
+          const isMatch = selectedParts.map(p => p.text).join(' ') === currentDrill.expected.join(' ');
+          if (isMatch) handleCorrect();
+          else handleMistake();
+        }
+      }, [selectedParts]);
+
+      const handleKeyDown = (e) => {
+        if (e.key === 'Enter' && typedInput.trim() && feedback === null) {
+          if (normalizeText(typedInput) === normalizeText(currentDrill.expected)) {
+            handleCorrect();
+          } else {
+            handleMistake();
+          }
+        }
+      };
+
+      const selectPart = (part) => {
+        if (feedback !== null || selectedParts.length >= 4) return;
+        setSelectedParts([...selectedParts, part]);
+        setShuffledOptions(shuffledOptions.filter(o => o.id !== part.id));
+      };
+
+      const removePart = (part) => {
+        if (feedback !== null) return;
+        setSelectedParts(selectedParts.filter(p => p.id !== part.id));
+        setShuffledOptions([...shuffledOptions, part]);
+      };
+
+      return (
+        <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col items-center p-4 md:p-6 overflow-x-hidden selection:bg-indigo-500/30">
+          
+          {/* Top Header Controls */}
+          <div className="w-full max-w-3xl flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-2">
+              <div className={`p-2 rounded-lg border ${isReviewMode ? 'bg-indigo-600/10 border-indigo-500/30 text-indigo-400' : 'bg-rose-600/10 border-rose-500/30 text-rose-400'}`}>
+                {isReviewMode ? <BookOpenCheck className="w-5 h-5" /> : <Swords className="w-5 h-5" />}
+              </div>
+              <span className="font-black text-lg tracking-widest text-slate-200">
+                {isReviewMode ? 'REVIEW' : 'PASSIVE'}<span className={isReviewMode ? 'text-indigo-400' : 'text-red-500'}>{isReviewMode ? 'NOTE' : 'DRILL'}</span>
+              </span>
+              {!isReviewMode && (
+                <span className="bg-red-500/20 border border-red-500/40 text-red-400 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse flex items-center gap-1 hidden sm:flex">
+                  <Shuffle className="w-3 h-3" /> RANDOMIZED
+                </span>
+              )}
+            </div>
+            
+            {gameState === 'playing' && !isReviewMode && (
+              <div className="flex gap-4 items-center">
+                {lap > 1 && (
+                  <span className="text-xs bg-purple-500/20 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded font-black font-mono animate-pulse shadow-[0_0_10px_rgba(168,85,247,0.4)] hidden sm:block">
+                    LAP {lap} (HIGH DIFF)
+                  </span>
+                )}
+                <div className="text-right">
+                  <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Score</div>
+                  <div className="font-mono font-black text-xl text-white leading-none">{score.toLocaleString()}</div>
+                </div>
+                <div className={`flex items-center gap-1.5 px-3 py-1 rounded-md border transition-all ${combo > 2 ? 'bg-orange-500/10 border-orange-500/30 text-orange-400 scale-105' : 'bg-slate-900 border-slate-800 text-slate-400'}`}>
+                  <Flame className={`w-4 h-4 ${combo > 2 ? 'animate-bounce text-orange-400' : ''}`} />
+                  <span className="font-black font-mono">{combo}x</span>
+                </div>
+              </div>
+            )}
+
+            {gameState === 'playing' && isReviewMode && (
+              <div className="flex items-center gap-2">
+                 <span className="text-xs text-slate-400 font-bold tracking-widest">진행도:</span>
+                 <span className="font-mono text-lg font-black text-indigo-400">{drillIdx + 1} / {activeSequence.length}</span>
+              </div>
+            )}
+          </div>
+
+          <main className="w-full max-w-3xl flex-1 flex flex-col justify-center">
+            
+            {/* Locked Mode (Password Screen) */}
+            {gameState === 'locked' && (
+              <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl flex flex-col items-center text-center animate-fade-in w-full max-w-sm mx-auto my-auto relative overflow-hidden z-20">
+                <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center border border-slate-700 mb-4 shadow-inner relative">
+                  <Lock className="w-8 h-8 text-indigo-400" />
+                  {pwdError && <div className="absolute inset-0 rounded-full border-2 border-rose-500 animate-ping opacity-50"></div>}
+                </div>
+                <h2 className="text-2xl md:text-3xl font-black text-white mb-2 tracking-tight">접근 권한 필요</h2>
+                <p className="text-slate-400 text-sm mb-6">수업용 아케이드입니다. 선생님이 부여한 4자리 암호를 입력하세요.</p>
+                <form onSubmit={handlePasswordSubmit} className="w-full flex flex-col gap-3">
+                  <input
+                    type="password"
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    className={`w-full bg-slate-950 border ${pwdError ? 'border-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.3)]' : 'border-slate-700 focus:border-indigo-500'} rounded-xl p-4 text-center text-3xl font-mono text-white outline-none transition-all tracking-[0.5em] placeholder:text-slate-700 placeholder:tracking-[0.2em]`}
+                    placeholder="••••"
+                    maxLength={4}
+                    autoFocus
+                  />
+                  {pwdError && <span className="text-rose-500 text-xs font-bold animate-pulse mt-1">암호가 일치하지 않습니다. 다시 시도하세요.</span>}
+                  <button type="submit" className="w-full mt-3 px-6 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-lg rounded-xl transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2">
+                    잠금 해제 (UNLOCK) <ChevronRight className="w-5 h-5" />
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* Welcome Mode */}
+            {gameState === 'welcome' && (
+              <div className="bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-2xl shadow-2xl flex flex-col items-center text-center animate-fade-in space-y-6 relative overflow-hidden">
+                <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center border border-red-500/20 relative z-10">
+                  <Zap className="w-8 h-8 text-red-400 animate-pulse" />
+                  <div className="absolute -top-1 -right-2 bg-indigo-500 text-[9px] font-bold px-1.5 py-0.5 rounded text-white rotate-12 shadow">NEW!</div>
+                </div>
+                <div className="space-y-2 relative z-10">
+                  <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight">수동태 <span className="text-red-500">티어 경쟁전</span></h1>
+                  <p className="text-slate-400 text-sm md:text-base max-w-lg leading-relaxed mx-auto">
+                    영어 수동태 3대 생성 규칙을 실시간 활용하여 제한 시간 **200초** 동안 고득점을 쟁취하세요! <br className="hidden md:block"/>
+                    <span className="text-indigo-400 font-semibold text-xs mt-1 inline-block">※ 매판 300개의 문제 풀에서 랜덤하게 출제. 랩2 부터 고난도 무한 모드 진입.</span>
+                  </p>
+                </div>
+
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 w-full text-left space-y-3 relative z-10">
+                  <h3 className="text-sm font-bold text-red-400 flex items-center gap-1.5">
+                    <Crown className="w-4 h-4" /> 필수 암기! 수동태 변환 3규칙
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-400">
+                    <div className="bg-slate-900/40 p-3 rounded-lg border border-slate-800/80">
+                      <span className="text-red-400 font-extrabold mr-1">[규칙 1] 목적어 이동</span>
+                      <p className="mt-1">원래 능동태의 **목적어**를 새 수동태 문장의 맨 앞 **주어** 자리로 이동시킵니다.</p>
+                    </div>
+                    <div className="bg-slate-900/40 p-3 rounded-lg border border-slate-800/80">
+                      <span className="text-red-400 font-extrabold mr-1">[규칙 2] Be + P.P.</span>
+                      <p className="mt-1">동사는 **Be동사 + 과거분사(P.P.)** 형태로 변경합니다. (주어 단복수와 시제에 맞는 be형 선택)</p>
+                    </div>
+                    <div className="bg-slate-900/40 p-3 rounded-lg border border-slate-800/80">
+                      <span className="text-red-400 font-extrabold mr-1">[규칙 3] by + 주어</span>
+                      <p className="mt-1">원래 맨 앞에 있던 주어는 앞에 **by**를 삽입해 문장 맨 뒤로 보냅니다.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="w-full text-left space-y-2 relative z-10">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                    <Award className="w-4 h-4 text-amber-500" /> 랭크 매치 등급표 (리뉴얼)
+                  </h4>
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 text-xs">
+                    {TIERS_CONFIG.map((tier, idx) => (
+                      <div key={idx} className={`p-2 rounded-lg border flex flex-col items-center justify-center text-center transition-all ${tier.color} ${tier.shadow}`}>
+                        <span className="font-extrabold text-[10px] sm:text-xs leading-tight">{tier.name.split(' ')[0]}</span>
+                        <span className="text-[9px] text-slate-400 font-bold mt-1">{tier.min === 0 ? "Default" : `${tier.min.toLocaleString()} pts`}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {personalBest.score > 0 && (
+                  <div className="w-full bg-slate-950/40 p-3 rounded-xl border border-slate-850 flex items-center justify-between px-4 text-xs font-semibold relative z-10">
+                    <span className="text-slate-400 flex items-center gap-1.5">
+                      <TrendingUp className="w-4 h-4 text-indigo-400" /> 개인 최고 기록:
+                    </span>
+                    <span className="text-indigo-400">
+                      {personalBest.tier} / <strong className="text-white font-mono">{personalBest.score.toLocaleString()}</strong> pts
+                    </span>
+                  </div>
+                )}
+
+                <button onClick={startGame} className="group relative w-full md:w-auto px-12 py-4 bg-red-600 hover:bg-red-500 text-white font-black text-lg rounded-xl transition-all active:scale-95 overflow-hidden shadow-lg shadow-red-600/20 z-10">
+                  <span className="relative z-10 flex items-center justify-center gap-2">START SPEEDRUN MATCH</span>
+                  <div className="absolute inset-0 h-full w-0 bg-white/20 transition-all duration-300 ease-out group-hover:w-full z-0"></div>
+                </button>
+              </div>
+            )}
+
+            {/* Playing Mode */}
+            {gameState === 'playing' && currentDrill && (
+              <div className="flex flex-col gap-4 relative animate-fade-in">
+                
+                {!isReviewMode && (
+                  <div className="w-full bg-slate-900 rounded-full h-3 border border-slate-800 overflow-hidden relative">
+                    <div 
+                      className={`h-full transition-all duration-1000 ${timeLeft <= 30 ? 'bg-red-500 shadow-md shadow-red-500/50' : 'bg-rose-500 shadow-md shadow-rose-500/50'}`} 
+                      style={{ width: `${(timeLeft / 200) * 100}%` }}
+                    ></div>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-end px-1">
+                  <div>
+                    <div className={`${isReviewMode ? 'text-indigo-400' : 'text-red-400'} font-black text-sm tracking-widest uppercase mb-0.5`}>
+                      Level {currentDrill.level} {!isReviewMode && (lap > 1 ? '(ENDLESS)' : '/ 10')}
+                    </div>
+                    <div className="text-slate-400 text-xs">
+                      {currentDrill.level <= 3 ? "가장 알맞은 단어 블록을 수동태 순서에 맞게 클릭하세요!" : 
+                       currentDrill.type === 'verb' ? "알맞은 동사 형태(Be + P.P)를 기입하고 Enter를 누르세요!" : 
+                       "완성된 형태의 전체 수동태 문장을 기입하고 Enter를 누르세요!"}
+                    </div>
+                  </div>
+                  
+                  {!isReviewMode && (
+                    <div className={`flex flex-col items-end ${timeLeft <= 30 ? 'text-rose-400 animate-pulse' : 'text-slate-300'}`}>
+                      <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Time Remaining</div>
+                      <div className="flex items-center gap-1 font-mono text-2xl font-black leading-none mt-1">
+                        <Clock className="w-5 h-5" /> {timeLeft}s
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {!isReviewMode && (
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl">
+                    <div className="flex items-center gap-1.5">
+                      <Award className="w-4 h-4 text-yellow-500" />
+                      <span className="text-xs font-bold text-slate-400">현재 랭크:</span>
+                    </div>
+                    <div className={`font-black text-sm px-3 py-0.5 rounded-md border ${getTierMetadata(score).color} ${getTierMetadata(score).shadow}`}>
+                      {getTierMetadata(score).name}
+                    </div>
+                  </div>
+                )}
+
+                <div className={`bg-slate-900 border ${feedback === 'correct' ? 'border-emerald-500/50 bg-emerald-950/20' : feedback === 'wrong' ? 'border-rose-500/50 bg-rose-950/20' : 'border-slate-800'} p-5 rounded-xl text-center shadow-lg transition-colors duration-200`}>
+                  <div className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mb-2">Active Sentence</div>
+                  <div className="text-xl md:text-2xl font-black text-white tracking-wide">
+                    {currentDrill.active}
+                  </div>
+                </div>
+
+                {currentDrill.level <= 3 && !isReviewMode && (
+                  <div className="bg-slate-900 border border-slate-850 rounded-xl p-4 text-xs text-red-200 space-y-2">
+                    <span className="font-bold block text-red-400">💡 수동태 생성 힌트</span>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px] text-slate-400">
+                      <div>1. 능동태의 목적어를 주어로 보냅니다.</div>
+                      <div>2. 알맞은 Be동사 + 과거분사를 맞춥니다.</div>
+                      <div>3. 원래 주어는 by + 목적격으로 처리합니다.</div>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl min-h-[180px] flex flex-col justify-center shadow-lg relative overflow-hidden">
+                  
+                  {!currentDrill.type && (
+                    <div className="space-y-5">
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {[0, 1, 2, 3].map((i) => (
+                          <div key={i} 
+                               onClick={() => selectedParts[i] && removePart(selectedParts[i])}
+                               className={`h-11 flex items-center justify-center px-4 rounded-lg font-bold text-sm md:text-base border border-dashed transition-all cursor-pointer
+                                 ${selectedParts[i] ? 'border-indigo-500 bg-indigo-600 text-white border-solid shadow-sm' : 'border-slate-800 bg-slate-950 text-slate-600 w-24 md:w-28'}
+                               `}>
+                            {selectedParts[i] ? selectedParts[i].text : `Step ${i + 1}`}
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <div className="flex flex-wrap justify-center gap-2 pt-3 border-t border-slate-850">
+                        {shuffledOptions.map((opt) => (
+                          <button key={opt.id} onClick={() => selectPart(opt)} disabled={feedback !== null}
+                                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 rounded-lg text-slate-200 text-xs md:text-sm font-bold transition-all disabled:opacity-50 shadow-sm">
+                            {opt.text}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {currentDrill.type === 'verb' && (
+                    <div className="flex flex-wrap items-center justify-center gap-2 text-base md:text-lg font-medium">
+                      <span className="text-slate-300">{currentDrill.prefix}</span>
+                      <input 
+                        ref={inputRef}
+                        type="text" 
+                        value={typedInput} 
+                        onChange={e => setTypedInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        disabled={feedback !== null}
+                        placeholder="Be + P.P."
+                        className={`bg-slate-950 border-b-2 outline-none text-center px-2 py-1 w-40 font-black transition-colors text-sm md:text-base
+                          ${feedback === null ? (isReviewMode ? 'border-indigo-500 text-indigo-300' : 'border-red-500 text-red-300') : 
+                            feedback === 'correct' ? 'border-emerald-500 text-emerald-400' : 'border-rose-500 text-rose-400'}`}
+                      />
+                      <span className="text-slate-300">{currentDrill.suffix}</span>
+                    </div>
+                  )}
+
+                  {currentDrill.type === 'full' && (
+                    <div className="w-full">
+                      <input 
+                        ref={inputRef}
+                        type="text" 
+                        value={typedInput} 
+                        onChange={e => setTypedInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        disabled={feedback !== null}
+                        placeholder="수동태 문장을 전체 입력하세요..."
+                        className={`w-full bg-slate-950 border outline-none rounded-lg px-4 py-3 text-sm md:text-base font-mono font-bold transition-all
+                          ${feedback === null ? 'border-slate-800 text-slate-200 focus:border-red-500' : 
+                            feedback === 'correct' ? 'border-emerald-500 text-emerald-400' : 'border-rose-500 text-rose-400'}`}
+                      />
+                    </div>
+                  )}
+
+                  {feedback === 'wrong' && (
+                    <div className="absolute inset-0 bg-slate-950/95 backdrop-blur flex flex-col items-center justify-center p-4 text-center animate-fade-in z-20">
+                      <AlertTriangle className="w-12 h-12 text-rose-500 mb-2 animate-bounce" />
+                      <h3 className="text-xl md:text-2xl font-black text-white mb-4 tracking-wider">
+                        {isReviewMode ? 'AGAIN WRONG!' : 'COMBO BROKEN!'}
+                      </h3>
+
+                      <div className="flex flex-col gap-3 w-full max-w-lg mb-4 text-left">
+                        <div className="bg-rose-950/40 border border-rose-900/60 rounded-lg p-3 w-full relative overflow-hidden">
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-rose-500"></div>
+                          <div className="text-[10px] text-rose-400/80 font-bold uppercase mb-1">나의 오답 (Your Answer)</div>
+                          <div className="text-rose-300 font-mono text-sm md:text-base line-through opacity-80 break-words">
+                            {!currentDrill.type 
+                              ? (selectedParts.length > 0 ? selectedParts.map(p => p.text).join(' ') : '(빈칸/미완성 제출)')
+                              : currentDrill.type === 'verb'
+                                ? `${currentDrill.prefix} ${typedInput || '___'} ${currentDrill.suffix}`
+                                : typedInput || '(빈칸 제출)'}
+                          </div>
+                        </div>
+
+                        <div className="bg-emerald-950/20 border border-emerald-900/50 rounded-lg p-3 w-full relative overflow-hidden shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+                           <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
+                           <div className="text-[10px] text-emerald-400/80 font-bold uppercase mb-1">올바른 정답 (Correct Answer)</div>
+                           <div className="text-emerald-400 font-mono font-black text-sm md:text-base break-words">
+                              {!currentDrill.type ? currentDrill.expected.join(' ') :
+                               currentDrill.type === 'verb' ? `${currentDrill.prefix} ${currentDrill.expected} ${currentDrill.suffix}` :
+                               currentDrill.expected}
+                           </div>
+                           <div className="text-[11px] text-emerald-300/80 mt-2 pt-2 border-t border-emerald-900/30 italic">
+                             💡 {currentDrill.explanation}
+                           </div>
+                        </div>
+                      </div>
+                      
+                      <button onClick={advanceNext} className="px-6 py-2.5 bg-white text-slate-900 hover:bg-slate-200 font-black rounded-lg transition-all active:scale-95 flex items-center gap-1.5 text-xs">
+                        NEXT DRILL <ChevronRight className="w-4 h-4" />
+                      </button>
+                      <span className="text-[10px] text-slate-500 mt-2 font-semibold">위 버튼을 누르거나 잠시 후 다음으로 넘어갑니다.</span>
+                    </div>
+                  )}
+
+                  {feedback === 'correct' && (
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10 animate-scale-up-fade">
+                      <CheckCircle2 className="w-24 h-24 text-emerald-500/40" />
+                    </div>
+                  )}
+                </div>
+
+                {(currentDrill.type === 'verb' || currentDrill.type === 'full') && feedback === null && (
+                  <div className="text-center text-[10px] text-slate-500 mt-1 font-mono flex justify-center items-center gap-1">
+                    답안 입력 후 <span className="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-300 font-bold">Enter ↵</span> 키를 눌러 제출
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Result Mode */}
+            {gameState === 'result' && (
+              <div className="bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-2xl shadow-2xl flex flex-col items-center text-center animate-fade-in relative overflow-hidden space-y-6">
+                
+                <div className="absolute -top-20 -right-20 w-48 h-48 bg-red-500/10 rounded-full blur-3xl"></div>
+                <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl"></div>
+
+                <Trophy className="w-14 h-14 text-yellow-400 mb-2 relative z-10 animate-bounce" />
+                <div className="space-y-1 relative z-10">
+                  <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">경쟁전 종료! (TIME'S UP)</h1>
+                  <p className="text-slate-400 text-xs md:text-sm">200초 동안 치른 수동태 스피드 매치 결과입니다.</p>
+                </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 w-full relative z-10">
+                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex flex-col items-center justify-center">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">득점 점수</span>
+                    <span className="text-2xl font-black text-red-500 font-mono">{score.toLocaleString()}</span>
+                  </div>
+                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex flex-col items-center justify-center">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">최대 콤보</span>
+                    <span className="text-2xl font-black text-orange-400 font-mono">{maxCombo}</span>
+                  </div>
+                  <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex flex-col items-center justify-center col-span-2 md:col-span-1">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">최종 정답</span>
+                    <span className="text-2xl font-black text-emerald-400 font-mono">{stats.correct} / {stats.total}</span>
+                  </div>
+                </div>
+
+                <div className="bg-slate-950/80 border border-slate-800 w-full rounded-xl p-5 relative z-10 flex flex-col items-center justify-center space-y-2">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">FINAL ACHIEVED TIER</span>
+                  <div className={`text-4xl font-black px-8 py-3 rounded-xl border ${getTierMetadata(score).color} ${getTierMetadata(score).shadow}`}>
+                    {getTierMetadata(score).name}
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    {score >= 15000 ? "축하합니다! 무결점 수동태의 지배자 등극." : "다음 티어를 목표로 다시 달려보세요!"}
+                  </p>
+                </div>
+
+                {score > personalBest.score ? (
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 w-full p-3 rounded-xl text-xs font-bold z-10 relative">
+                    🎉 개인 최고 기록 경신 성공! 기기에 새로운 하이 티어가 박제되었습니다.
+                  </div>
+                ) : (
+                  <div className="bg-slate-950/40 border border-slate-850 w-full p-3 rounded-xl text-xs text-slate-400 z-10 relative">
+                    개인 최고 점수: <strong className="text-indigo-400">{personalBest.score.toLocaleString()} pts ({personalBest.tier.split(' ')[0]})</strong>
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row gap-3 w-full relative z-10 mt-2">
+                  {wrongDrills.length > 0 && (
+                    <button onClick={startReviewMode} className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 border border-indigo-500 shadow-xl">
+                      <BookOpenCheck className="w-5 h-5" /> 오답 노트 복습 ({wrongDrills.length}문제)
+                    </button>
+                  )}
+                  <button onClick={startGame} className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 border border-slate-700 shadow-xl">
+                    <RotateCcw className="w-5 h-5 text-red-400" /> 새 게임 시작
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Review Complete Mode */}
+            {gameState === 'review_complete' && (
+              <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl flex flex-col items-center text-center animate-fade-in space-y-6">
+                 <CheckCircle2 className="w-16 h-16 text-emerald-500 mb-2" />
+                 <div className="space-y-2">
+                   <h2 className="text-2xl md:text-3xl font-black text-white">오답 노트 복습 완료!</h2>
+                   <p className="text-slate-400 text-sm">틀렸던 {wrongDrills.length}개 문제의 원리를 다시 한번 확인했습니다.<br/>이제 완벽해진 실력으로 새 기록에 도전하세요!</p>
+                 </div>
+                 <button onClick={startGame} className="mt-4 px-10 py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-xl transition-all active:scale-95 shadow-xl flex items-center gap-2 text-lg">
+                    <Play className="w-5 h-5 fill-current" /> 타이머 매치 재도전
+                 </button>
+              </div>
+            )}
+          </main>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
